@@ -7,7 +7,7 @@ const Header = ({updatePage}) => {
                 <li onClick={() => updatePage(1)}>useState</li>
                 <li onClick={() => updatePage(2)}>useEffect</li>
                 <li onClick={() => updatePage(3)}>useRef</li>
-                <li onClick={() => updatePage(4)}>useContext</li>
+                <li onClick={() => updatePage(4)}>useMemo</li>
             </ul>
         </header>
     )

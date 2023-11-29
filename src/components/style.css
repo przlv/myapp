@@ -26,9 +26,9 @@ ul.header-list {
     justify-content: center;
     gap: 3rem;
     align-items: center;
-  }
+}
   
-  ul.header-list li {
+ul.header-list li {
     display: inline;
     padding: 1rem 2.5rem;
     font-size: 28px;
@@ -36,13 +36,13 @@ ul.header-list {
     border-radius: 15px;
     color: #000000;
     transition: background-color .5s ease-in-out;
-  }
-  
-  ul.header-list li:hover {
+}
+
+ul.header-list li:hover {
     background-color: #00BF9F;
     color:#fff;
     cursor: pointer;
-  }
+}
   
 .btn-menu {
     display: flex;
@@ -62,4 +62,17 @@ ul.header-list {
     background-color: #00BF9F;
     cursor: pointer;
     color: #fff;
+}
+
+/*effect list*/
+
+.effect-list {
+    list-style-type: none;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    align-items: center;
+    border: 5px solid #000000;
 }
