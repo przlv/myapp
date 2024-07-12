@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Имя и ID контейнера Docker, в который нужно подключиться
+container_name="my_container"
+container_id=$(docker ps -aqf "name=$container_name")
+
+if [ -z "$container_id" ]; then
+    echo "Контейнер $container_name не найден."
+    exit 1
+fi
+
+# Список запросов для тестирования
+requests=(
+    "http://example.com/path1"
+    "http://example.com/path2"
+    "http://example.com/path3"
+)
+
+# Функция для выполнения команды внутри контейнера
+exec_in_container() {
+    local cmd="$1"
+    docker exec "$container_id" bash -c "$cmd"
+}
+
+# Функция для запуска ab утилиты в контейнере
+run_ab_in_container() {
+    local url="$1"
+    exec_in_container "ab -c 10 -n 100 $url > ab_results_${url//\//_}.txt &"
+}
+
+# Очистка старых результатов тестов (если требуется)
+exec_in_container "rm -f /path/to/ab_results_*.txt"
+
+# Запуск ab утилит для каждого запроса в контейнере
+for req in "${requests[@]}"; do
+    run_ab_in_container "$req"
+done
+
+# Ожидание завершения всех запущенных ab процессов в контейнере
+exec_in_container "wait"
+
+echo "Тестирование завершено. Результаты сохранены в файлы ab_results_*.txt внутри контейнера."
