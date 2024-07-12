@@ -1,42 +1,47 @@
-#!/bin/bash
+# Имя контейнера
+$containerName = "my-running-httpd"
 
-# Имя и ID контейнера Docker, в который нужно подключиться
-container_name="my_container"
-container_id=$(docker ps -aqf "name=$container_name")
-
-if [ -z "$container_id" ]; then
-    echo "Контейнер $container_name не найден."
-    exit 1
-fi
-
-# Список запросов для тестирования
-requests=(
-    "http://example.com/path1"
-    "http://example.com/path2"
-    "http://example.com/path3"
+# Список URL для тестирования
+$urls = @(
+    "https://mail.ru/",
+    "https://yandex.ru/maps/",
+    "https://vk.com/"
 )
 
-# Функция для выполнения команды внутри контейнера
-exec_in_container() {
-    local cmd="$1"
-    docker exec "$container_id" bash -c "$cmd"
+# Количество параллельных запросов
+$concurrency = 1
+
+# Общее количество запросов
+$totalRequests = 1
+
+# Проверяем, запущен ли контейнер
+$containerRunning = docker ps --filter "name=$containerName" --format "{{.Names}}"
+if ($containerRunning -ne $containerName) {
+    Write-Error "Контейнер $containerName не запущен. Пожалуйста, запустите контейнер и повторите попытку."
+    exit
 }
 
-# Функция для запуска ab утилиты в контейнере
-run_ab_in_container() {
-    local url="$1"
-    exec_in_container "ab -c 10 -n 100 $url > ab_results_${url//\//_}.txt &"
+# Команды для отправки запросов с помощью ab
+$commands = @()
+foreach ($url in $urls) {
+    $commands += "docker exec $containerName ab -n $totalRequests -c $concurrency $url"
 }
 
-# Очистка старых результатов тестов (если требуется)
-exec_in_container "rm -f /path/to/ab_results_*.txt"
+# Запускаем команды параллельно
+$jobs = @()
+foreach ($command in $commands) {
+    $jobs += Start-Job -ScriptBlock { param($cmd) Invoke-Expression $cmd } -ArgumentList $command
+}
 
-# Запуск ab утилит для каждого запроса в контейнере
-for req in "${requests[@]}"; do
-    run_ab_in_container "$req"
-done
+# Ожидаем завершения всех задач
+$jobs | ForEach-Object {
+    $job = $_
+    while ($job.State -ne 'Completed') {
+        Start-Sleep -Seconds 1
+    }
+    $output = Receive-Job -Job $job
+    $output | Out-File -FilePath "output-$($job.Id).txt" -Encoding utf8
+    Remove-Job -Job $job
+}
 
-# Ожидание завершения всех запущенных ab процессов в контейнере
-exec_in_container "wait"
-
-echo "Тестирование завершено. Результаты сохранены в файлы ab_results_*.txt внутри контейнера."
+Write-Host "Все запросы отправлены и обработаны."
