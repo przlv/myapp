@@ -1,47 +1,34 @@
-# Имя контейнера
-$containerName = "my-running-httpd"
+#!/bin/bash
 
-# Список URL для тестирования
-$urls = @(
-    "https://mail.ru/",
-    "https://yandex.ru/maps/",
-    "https://vk.com/"
-)
+# Убедимся, что передано достаточное количество аргументов
+if [ "$#" -lt 4 ]; then
+    echo "Usage: $0 <number_of_requests> <concurrency> <output_file> <url1> [<url2> ... <urlN>]"
+    exit 1
+fi
 
-# Количество параллельных запросов
-$concurrency = 1
+# Число запросов
+REQUESTS=$1
 
-# Общее количество запросов
-$totalRequests = 1
+# Уровень параллелизма
+CONCURRENCY=$2
 
-# Проверяем, запущен ли контейнер
-$containerRunning = docker ps --filter "name=$containerName" --format "{{.Names}}"
-if ($containerRunning -ne $containerName) {
-    Write-Error "Контейнер $containerName не запущен. Пожалуйста, запустите контейнер и повторите попытку."
-    exit
-}
+# Файл для записи вывода
+OUTPUT_FILE=$3
 
-# Команды для отправки запросов с помощью ab
-$commands = @()
-foreach ($url in $urls) {
-    $commands += "docker exec $containerName ab -n $totalRequests -c $concurrency $url"
-}
+# Удаляем файл, если он существует
+rm -f $OUTPUT_FILE
 
-# Запускаем команды параллельно
-$jobs = @()
-foreach ($command in $commands) {
-    $jobs += Start-Job -ScriptBlock { param($cmd) Invoke-Expression $cmd } -ArgumentList $command
-}
+# Сдвигаем аргументы, чтобы в $@ остались только URL
+shift 3
 
-# Ожидаем завершения всех задач
-$jobs | ForEach-Object {
-    $job = $_
-    while ($job.State -ne 'Completed') {
-        Start-Sleep -Seconds 1
-    }
-    $output = Receive-Job -Job $job
-    $output | Out-File -FilePath "output-$($job.Id).txt" -Encoding utf8
-    Remove-Job -Job $job
-}
+# Запуск Apache Bench для каждого URL
+for URL in "$@"; do
+    echo "Testing $URL" | tee -a $OUTPUT_FILE
+    ab -n $REQUESTS -c $CONCURRENCY $URL | tee -a $OUTPUT_FILE
+    echo "----------------------------------------" | tee -a $OUTPUT_FILE
+done
 
-Write-Host "Все запросы отправлены и обработаны."
+
+
+# Копируем скрипт в контейнер
+COPY ./load_test.sh /usr/local/bin/load_test.sh
