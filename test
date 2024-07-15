@@ -15,20 +15,28 @@ CONCURRENCY=$2
 # Файл для записи вывода
 OUTPUT_FILE=$3
 
+# Bearer Token для аутентификации
+AUTH="Authorization: Bearer your_bearer_token_here"
+
 # Удаляем файл, если он существует
 rm -f $OUTPUT_FILE
 
 # Сдвигаем аргументы, чтобы в $@ остались только URL
 shift 3
 
-# Запуск Apache Bench для каждого URL
-for URL in "$@"; do
-    echo "Testing $URL" | tee -a $OUTPUT_FILE
-    ab -n $REQUESTS -c $CONCURRENCY $URL | tee -a $OUTPUT_FILE
+# Функция для выполнения нагрузочного теста с использованием ab
+run_ab() {
+    local url=$1
+    echo "Testing $url" | tee -a $OUTPUT_FILE
+    ab -n $REQUESTS -c $CONCURRENCY -H "$AUTH" $url | tee -a $OUTPUT_FILE
     echo "----------------------------------------" | tee -a $OUTPUT_FILE
+}
+
+# Запуск Apache Bench для каждого URL в фоновом режиме
+for URL in "$@"; do
+    run_ab $URL &
 done
 
+# Ожидание завершения всех фоновых задач
+wait
 
-
-# Копируем скрипт в контейнер
-COPY ./load_test.sh /usr/local/bin/load_test.sh
