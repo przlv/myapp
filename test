@@ -1,42 +1,16 @@
-#!/bin/bash
+from line_profiler import LineProfiler
 
-# Убедимся, что передано достаточное количество аргументов
-if [ "$#" -lt 4 ]; then
-    echo "Usage: $0 <number_of_requests> <concurrency> <output_file> <url1> [<url2> ... <urlN>]"
-    exit 1
-fi
-
-# Число запросов
-REQUESTS=$1
-
-# Уровень параллелизма
-CONCURRENCY=$2
-
-# Файл для записи вывода
-OUTPUT_FILE=$3
-
-# Bearer Token для аутентификации
-AUTH="Authorization: Bearer your_bearer_token_here"
-
-# Удаляем файл, если он существует
-rm -f $OUTPUT_FILE
-
-# Сдвигаем аргументы, чтобы в $@ остались только URL
-shift 3
-
-# Функция для выполнения нагрузочного теста с использованием ab
-run_ab() {
-    local url=$1
-    echo "Testing $url" | tee -a $OUTPUT_FILE
-    ab -n $REQUESTS -c $CONCURRENCY -H "$AUTH" $url | tee -a $OUTPUT_FILE
-    echo "----------------------------------------" | tee -a $OUTPUT_FILE
-}
-
-# Запуск Apache Bench для каждого URL в фоновом режиме
-for URL in "$@"; do
-    run_ab $URL &
-done
-
-# Ожидание завершения всех фоновых задач
-wait
-
+def profile(follow=[]):
+    def inner(func):
+        def profiled_func(*args, **kwargs):
+            profiler = LineProfiler()
+            profiler.add_function(func)
+            for f in follow:
+                profiler.add_function(f)
+            profiler.enable_by_count()
+            result = func(*args, **kwargs)
+            profiler.disable_by_count()
+            profiler.print_stats()
+            return result
+        return profiled_func
+    return inner
