@@ -1,16 +1,34 @@
-from line_profiler import LineProfiler
+import os
 
-def profile(follow=[]):
-    def inner(func):
-        def profiled_func(*args, **kwargs):
-            profiler = LineProfiler()
-            profiler.add_function(func)
-            for f in follow:
-                profiler.add_function(f)
-            profiler.enable_by_count()
-            result = func(*args, **kwargs)
-            profiler.disable_by_count()
-            profiler.print_stats()
-            return result
-        return profiled_func
-    return inner
+def split_file(file_path, chunk_size=10 * 1024 * 1024):  # 10MB по умолчанию
+    file_size = os.path.getsize(file_path)
+    with open(file_path, 'rb') as f:
+        chunk_index = 0
+        while f.tell() < file_size:
+            chunk_data = f.read(chunk_size)
+            chunk_filename = f"{file_path}.part{chunk_index:03d}"
+            with open(chunk_filename, 'wb') as chunk_file:
+                chunk_file.write(chunk_data)
+            print(f"Created: {chunk_filename}")
+            chunk_index += 1
+
+if __name__ == "__main__":
+    file_to_split = "my-repo.zip"  # Укажи свой файл
+    split_file(file_to_split)
+
+
+
+import os
+
+def merge_files(output_file, parts_directory="."):
+    part_files = sorted([f for f in os.listdir(parts_directory) if f.startswith(output_file) and ".part" in f])
+
+    with open(output_file, 'wb') as output_f:
+        for part_file in part_files:
+            with open(part_file, 'rb') as pf:
+                output_f.write(pf.read())
+            print(f"Merged: {part_file}")
+
+if __name__ == "__main__":
+    merged_file = "my-repo.zip"  # Название конечного файла
+    merge_files(merged_file)
