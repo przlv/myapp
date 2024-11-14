@@ -1,13 +1,14 @@
-from confluent_kafka import Producer
+import json
 import time
+from confluent_kafka import Producer
 
-# Настройки Kafka
+# Конфигурация Kafka
 kafka_config = {
-    'bootstrap.servers': 'localhost:9092',  # Адрес Kafka брокера
-    'security.protocol': 'SSL',             # Используем SSL для безопасного подключения
-    'ssl.ca.location': '/path/to/ca.pem',   # Корневой сертификат
-    'ssl.certificate.location': '/path/to/client_cert.pem',  # Клиентский сертификат
-    'ssl.key.location': '/path/to/client_key.pem',           # Закрытый ключ
+    'bootstrap.servers': 'localhost:9092',
+    'security.protocol': 'SSL',
+    'ssl.ca.location': '/path/to/ca.pem',
+    'ssl.certificate.location': '/path/to/client_cert.pem',
+    'ssl.key.location': '/path/to/client_key.pem',
 }
 
 # Создаем продюсера
@@ -18,23 +19,31 @@ def delivery_report(err, msg):
     if err is not None:
         print(f"Ошибка при отправке сообщения: {err}")
     else:
-        print(f"Сообщение отправлено в {msg.topic()} [{msg.partition()}]")
+        print(f"Сообщение отправлено в {msg.topic()} [{msg.partition()}], ключ: {msg.key().decode('utf-8')}")
 
-# Функция отправки сообщения в топик
-def send_message(topic, message):
+# Функция отправки JSON-сообщения в топик
+def send_json_message(topic, key, data):
     try:
-        producer.produce(topic, message.encode('utf-8'), callback=delivery_report)
-        producer.poll(1)  # Ожидаем завершения отправки
+        # Сериализуем данные в JSON
+        message = json.dumps(data)
+        # Отправляем сообщение
+        producer.produce(topic, key=key.encode('utf-8'), value=message.encode('utf-8'), callback=delivery_report)
+        producer.poll(1)
     except Exception as e:
         print(f"Ошибка: {e}")
 
 if __name__ == "__main__":
-    topic_name = "my_topic"
+    topic_name = "my_json_topic"
 
-    # Пример отправки сообщений в цикле
+    # Пример данных для отправки
     for i in range(10):
-        message = f"Сообщение {i}"
-        send_message(topic_name, message)
+        key = f"key-{i}"
+        data = {
+            "id": i,
+            "name": f"Item {i}",
+            "timestamp": time.time()
+        }
+        send_json_message(topic_name, key, data)
         time.sleep(1)
 
     # Завершаем работу продюсера
